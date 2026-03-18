@@ -311,9 +311,6 @@ def train(total_timesteps: int = 100_000, seed: int = 0) -> PPO:
     # Stable-Baselines3 requires the old gym API; wrap accordingly
     def make_env():
         env = SpaceDebrisAvoidanceEnv()
-        if _GYM_VERSION == "gymnasium":
-            from gymnasium.wrappers import TimeLimit
-            from stable_baselines3.common.env_util import make_vec_env  # noqa: F401
         return env
 
     env = DummyVecEnv([make_env])
@@ -383,7 +380,7 @@ def evaluate(model: PPO, num_episodes: int = 5, render: bool = True) -> None:
         print(f"  Episode {ep + 1:2d}: steps={steps:3d}, total_reward={total_reward:+.2f}")
 
     env.close()
-    if render and matplotlib.get_backend() != "agg":
+    if render and matplotlib.get_backend() != "Agg":
         plt.show()
 
 
