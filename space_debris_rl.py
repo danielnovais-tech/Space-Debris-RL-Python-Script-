@@ -85,25 +85,51 @@ class SpaceDebrisAvoidanceEnv(gym.Env):
     −0.01 every time step (encourages efficiency)
     """
 
+    # Keep both keys for compatibility across gym versions
     metadata = {"render_modes": ["human"], "render.modes": ["human"]}
 
-    def __init__(self):
+    def __init__(
+        self,
+        dt: float = 0.1,
+        max_steps: int = 200,
+        num_debris: int = 2,
+        thrust: float = 0.5,
+        debris_speed_range: tuple[float, float] = (0.2, 0.8),
+        collision_threshold: float = 1.0,
+        goal_threshold: float = 1.0,
+        spacecraft_start_pos: np.ndarray | None = None,
+        spacecraft_start_vel: np.ndarray | None = None,
+        goal_pos: np.ndarray | None = None,
+        boundary: float = 20.0,
+    ):
         super().__init__()
 
         # Simulation parameters
-        self.dt = 0.1                         # integration time step (s)
-        self.max_steps = 200                  # maximum steps per episode
-        self.num_debris = 2                   # number of debris objects
-        self.thrust = 0.5                     # thrust impulse magnitude
-        self.debris_speed_range = (0.2, 0.8) # debris speed [min, max]
-        self.collision_threshold = 1.0        # collision detection radius
-        self.goal_threshold = 1.0             # goal arrival radius
-        self.boundary = 20.0                  # ±boundary for positions
+        self.dt = float(dt)                   # integration time step (s)
+        self.max_steps = int(max_steps)       # maximum steps per episode
+        self.num_debris = int(num_debris)     # number of debris objects
+        self.thrust = float(thrust)           # thrust impulse magnitude
+        self.debris_speed_range = tuple(debris_speed_range)  # debris speed [min, max]
+        self.collision_threshold = float(collision_threshold)  # collision detection radius
+        self.goal_threshold = float(goal_threshold)            # goal arrival radius
+        self.boundary = float(boundary)       # ±boundary for positions
 
         # Fixed start and goal
-        self.spacecraft_start_pos = np.array([0.0, 0.0], dtype=np.float32)
-        self.spacecraft_start_vel = np.array([0.0, 0.0], dtype=np.float32)
-        self.goal_pos = np.array([10.0, 10.0], dtype=np.float32)
+        self.spacecraft_start_pos = (
+            np.array([0.0, 0.0], dtype=np.float32)
+            if spacecraft_start_pos is None
+            else np.array(spacecraft_start_pos, dtype=np.float32)
+        )
+        self.spacecraft_start_vel = (
+            np.array([0.0, 0.0], dtype=np.float32)
+            if spacecraft_start_vel is None
+            else np.array(spacecraft_start_vel, dtype=np.float32)
+        )
+        self.goal_pos = (
+            np.array([10.0, 10.0], dtype=np.float32)
+            if goal_pos is None
+            else np.array(goal_pos, dtype=np.float32)
+        )
 
         # Observation space: spacecraft (4) + goal (2) + debris (4 × N)
         obs_dim = 4 + 2 + 4 * self.num_debris
@@ -327,7 +353,7 @@ def train(total_timesteps: int = 100_000, seed: int = 0) -> PPO:
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.01,   # small entropy bonus to encourage exploration
+        ent_coef=0.0,
     )
     model.learn(total_timesteps=total_timesteps)
     model.save("space_debris_ppo")
@@ -338,49 +364,39 @@ def train(total_timesteps: int = 100_000, seed: int = 0) -> PPO:
 # ---------------------------------------------------------------------------
 # Evaluation & Visualisation
 # ---------------------------------------------------------------------------
-def evaluate(model: PPO, num_episodes: int = 5, render: bool = True) -> None:
-    """Run evaluation episodes with the trained agent.
+def evaluate(model: PPO, num_episodes: int = 5) -> None:
+    """Evaluate a trained agent and render trajectories.
 
-    Parameters
-    ----------
-    model : PPO
-        Trained Stable-Baselines3 model.
-    num_episodes : int
-        Number of evaluation episodes to run.
-    render : bool
-        Whether to render each step with Matplotlib.
+    Matches the simple loop:
+    reset → predict → step → render (each step) → print episode reward → show.
     """
     env = SpaceDebrisAvoidanceEnv()
 
-    print(f"\nEvaluating agent over {num_episodes} episode(s)...")
-    for ep in range(num_episodes):
+    for episode in range(num_episodes):
         if _GYM_VERSION == "gymnasium":
-            obs, _ = env.reset(seed=ep)
+            obs, _ = env.reset()
         else:
             obs = env.reset()
 
         done = False
         total_reward = 0.0
-        steps = 0
 
         while not done:
-            action, _ = model.predict(obs, deterministic=True)
+            action, _states = model.predict(obs, deterministic=True)
+
             if _GYM_VERSION == "gymnasium":
-                obs, reward, terminated, truncated, _ = env.step(int(action))
+                obs, reward, terminated, truncated, info = env.step(int(action))
                 done = terminated or truncated
             else:
-                obs, reward, done, _ = env.step(int(action))
+                obs, reward, done, info = env.step(int(action))
 
             total_reward += float(reward)
-            steps += 1
+            env.render()
 
-            if render:
-                env.render()
-
-        print(f"  Episode {ep + 1:2d}: steps={steps:3d}, total_reward={total_reward:+.2f}")
+        print(f"Episode {episode + 1} total reward: {total_reward:.2f}")
 
     env.close()
-    if render and matplotlib.get_backend() != "Agg":
+    if matplotlib.get_backend() != "Agg":
         plt.show()
 
 
@@ -388,10 +404,7 @@ def evaluate(model: PPO, num_episodes: int = 5, render: bool = True) -> None:
 # Main
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Space Debris Collision Avoidance — RL Training & Evaluation")
-    print("=" * 60)
-
-    trained_model = train(total_timesteps=100_000)
-
-    evaluate(trained_model, num_episodes=5, render=True)
+    print("Training PPO agent on space debris avoidance...")
+    model = train()
+    print("\nEvaluating trained agent...")
+    evaluate(model)
