@@ -137,6 +137,13 @@ Enable pre-commit:
 
 	pre-commit install
 
+## Releases
+
+This repo includes a GitHub Actions release workflow that runs on version tags.
+
+- Create a tag like `v0.1.0` and push it.
+- The workflow builds `sdist` + `wheel` and uploads them to a GitHub Release.
+
 ## Model artifact storage policy
 
 The example trained model is stored as `space_debris_ppo.zip`.
