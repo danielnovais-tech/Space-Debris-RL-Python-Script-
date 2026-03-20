@@ -1,35 +1,49 @@
-# Space-Debris-RL-Python-Script-
-Reinforcement Learning enables satellites to learn optimal maneuvers by trial and error, receiving rewards for avoiding collisions and penalties for risky moves. Applied to constellations like Starlink, AI can minimize fuel use while safely dodging space debris in real time.
+# Space Debris RL
 
-## RL demo: space debris collision avoidance
+Reinforcement Learning enables satellites to learn optimal maneuvers by trial and error, receiving rewards for avoiding collisions and penalties for risky moves. This repo packages two demos as an installable Python project:
 
-The main RL demo is implemented in `space_debris_rl.py`. It defines a custom (Gym/Gymnasium) environment and trains a PPO agent (Stable-Baselines3) to reach a goal while avoiding moving debris.
+- **RL demo:** 2D space-debris collision avoidance with PPO
+- **Self-healing demo:** anomaly detection + automated recovery loop simulator
 
-**Install (typical)**
+## Quickstart (RL demo)
 
-	pip install gymnasium numpy matplotlib stable-baselines3 torch
+### 1) Create a virtualenv
 
-Note: `torch`/`stable-baselines3` wheels may not be available for very new Python versions yet. If installation fails, try Python 3.10–3.12.
+Windows (PowerShell):
 
-**Run**
+	python -m venv .venv
+	.\.venv\Scripts\Activate.ps1
 
-	python space_debris_rl.py
+### 2) Install
 
-### What happens
+	python -m pip install --upgrade pip
+	pip install -e ".[rl]"
 
-- The agent is trained for **100,000** time steps (this may take a few minutes on a CPU).
-- After training, **five evaluation episodes** are shown in a Matplotlib window.
-- Each episode displays the spacecraft (blue dot), debris (red dots), and goal (green star). The agent attempts to reach the goal while avoiding collisions.
+### 3) Run
 
-### Customisation
+	space-debris-rl run
 
-- Number of debris: change `self.num_debris` in the environment.
-- Thrust strength: adjust `self.thrust`.
-- Goal position: modify `self.goal_pos`.
-- Training duration: increase `total_timesteps` in `train()` / `model.learn()` for better performance.
-- RL algorithm: replace PPO with DQN, A2C, etc., if desired.
+What happens:
 
-This code is intentionally simplified for demonstration. Real-world space debris avoidance would involve 3D dynamics, more precise orbit propagation, sensor noise, and a larger action space.
+- Trains for **100,000** timesteps by default.
+- Evaluates **5 episodes** and renders trajectories in a Matplotlib window.
+
+## Training vs evaluation (inference)
+
+Train and save a model (Stable-Baselines3 saves `*.zip` automatically):
+
+	space-debris-rl train --timesteps 100000 --model space_debris_ppo
+
+Evaluate a saved model:
+
+	space-debris-rl evaluate --model space_debris_ppo.zip --episodes 5
+
+Tip: use `--no-render` on headless machines.
+
+## Quickstart (self-healing demo)
+
+	pip install -e ".[self-healing]"
+	service-self-healing
 
 ## Product‑Ready: key development areas
 
@@ -81,13 +95,7 @@ This code is intentionally simplified for demonstration. Real-world space debris
 
 This repo also includes a standalone anomaly-detection + auto-repair simulation.
 
-**Install**
-
-	pip install numpy matplotlib scikit-learn
-
-**Run**
-
-	python service_self_healing.py
+This demo is now exposed via the `service-self-healing` CLI.
 
 ### Next sprint (product-ready)
 
@@ -112,3 +120,33 @@ This repo also includes a standalone anomaly-detection + auto-repair simulation.
 | Validation | Fault-injection harness + summary report of results |
 
 Out of scope for this sprint: full online learning, deep root-cause analysis, and production integrations (Prometheus/Grafana/PagerDuty) beyond simple adapters.
+
+## Development
+
+Install dev tooling:
+
+	pip install -e ".[dev]"
+
+Run checks:
+
+	ruff check .
+	ruff format --check .
+	pytest
+
+Enable pre-commit:
+
+	pre-commit install
+
+## Model artifact storage policy
+
+The example trained model is stored as `space_debris_ppo.zip`.
+
+For a "product" workflow, it’s usually better to store large artifacts as:
+
+- a GitHub Release asset, or
+- Git LFS, or
+- downloaded at runtime (with a checksum).
+
+If you distribute a model file, consider publishing a SHA-256 checksum. On Windows:
+
+	certutil -hashfile space_debris_ppo.zip SHA256

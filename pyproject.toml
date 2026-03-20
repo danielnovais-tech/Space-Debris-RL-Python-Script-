@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "space-debris-rl"
+version = "0.1.0"
+description = "Space debris collision-avoidance demos (RL + self-healing) packaged with a CLI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "danielnovais-tech"}]
+keywords = ["reinforcement-learning", "ppo", "gymnasium", "stable-baselines3", "space"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "numpy>=1.26,<3",
+  "gymnasium>=0.29",
+]
+
+[project.optional-dependencies]
+rl = [
+  "matplotlib>=3.8",
+  "stable-baselines3>=2.3",
+  "torch>=2.2",
+]
+self-healing = [
+  "matplotlib>=3.8",
+  "scikit-learn>=1.4",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.5",
+  "pre-commit>=3.7",
+  "pyright>=1.1.380",
+]
+
+[project.scripts]
+space-debris-rl = "space_debris_rl.cli:main"
+service-self-healing = "space_debris_rl.self_healing:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"

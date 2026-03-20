@@ -1,0 +1,6 @@
+# Runtime (minimal) dependencies.
+# For full demos, install with extras:
+#   pip install -e ".[rl]"          # RL demo
+#   pip install -e ".[self-healing]"  # self-healing demo
+numpy>=1.26,<3
+gymnasium>=0.29
