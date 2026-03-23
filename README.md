@@ -42,6 +42,20 @@ Robust evaluation (simulated radiation-induced corruption):
 
 	space-debris-rl evaluate --model space_debris_ppo.zip --robust --obs-bitflip-p 0.001
 
+## Hierarchical distributed demo (manager/worker)
+
+Train a manager (discrete strategy selector) and a worker (conditioned on manager strategy):
+
+	space-debris-rl hierarchical train-manager --timesteps 50000 --model manager_ppo
+	space-debris-rl hierarchical train-worker --timesteps 50000 --model worker_ppo
+
+Evaluate the pair (optionally with observation corruption in robust mode):
+
+	space-debris-rl hierarchical evaluate --manager manager_ppo.zip --worker worker_ppo.zip --episodes 5
+	space-debris-rl hierarchical evaluate --robust --obs-bitflip-p 0.001
+
+Code: the reference hierarchical agent interface is available as `space_debris_rl.hrl.HierarchicalAgent`.
+
 Tip: use `--no-render` on headless machines.
 
 ## Quickstart (self-healing demo)
