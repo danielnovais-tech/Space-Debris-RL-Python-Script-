@@ -38,6 +38,10 @@ Evaluate a saved model:
 
 	space-debris-rl evaluate --model space_debris_ppo.zip --episodes 5
 
+Robust evaluation (simulated radiation-induced corruption):
+
+	space-debris-rl evaluate --model space_debris_ppo.zip --robust --obs-bitflip-p 0.001
+
 Tip: use `--no-render` on headless machines.
 
 ## Quickstart (self-healing demo)

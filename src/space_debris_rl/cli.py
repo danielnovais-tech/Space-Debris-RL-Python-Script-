@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from ._deps import MissingDependencyError
-from .rl import evaluate, load_model, train
+from .rl import evaluate, evaluate_robust, load_model, train
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -30,6 +30,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--model", type=str, default="space_debris_ppo.zip")
     p_eval.add_argument("--episodes", type=int, default=5)
     p_eval.add_argument("--no-render", action="store_true")
+    p_eval.add_argument(
+        "--robust",
+        action="store_true",
+        help="Enable safety wrapper + corruption simulation + hash-based reload",
+    )
+    p_eval.add_argument(
+        "--obs-bitflip-p",
+        type=float,
+        default=0.0,
+        help="Probability of SEU-like bitflip per observation element (robust mode)",
+    )
 
     p.set_defaults(cmd="run")
     return p
@@ -46,7 +57,17 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "evaluate":
             model = load_model(Path(args.model))
-            evaluate(model, num_episodes=args.episodes, render=not args.no_render)
+            if args.robust:
+                evaluate_robust(
+                    model,
+                    num_episodes=args.episodes,
+                    render=not args.no_render,
+                    obs_bitflip_p=float(args.obs_bitflip_p),
+                    model_path_for_hash=Path(args.model),
+                    seed=0,
+                )
+            else:
+                evaluate(model, num_episodes=args.episodes, render=not args.no_render)
             return 0
 
         # run (default)
