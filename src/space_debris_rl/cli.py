@@ -369,20 +369,22 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
 
         if args.cmd == "train-hierarchical":
-            from .hierarchical_rl import HierarchicalConfig, train_manager, train_worker
+            from .hierarchical_training import TrainHierarchicalArgs, train_hierarchical
 
-            cfg = HierarchicalConfig(
-                num_nodes=int(args.nodes),
-                strategy_n=int(args.strategies),
-                seed=int(args.seed),
-                robust=bool(args.robust),
-                obs_bitflip_p=float(args.obs_bitflip_p),
+            train_hierarchical(
+                TrainHierarchicalArgs(
+                    nodes=int(args.nodes),
+                    strategies=int(args.strategies),
+                    timesteps=int(args.timesteps),
+                    seed=int(args.seed),
+                    robust=bool(args.robust),
+                    obs_bitflip_p=float(args.obs_bitflip_p),
+                    ltl=list(args.ltl) if getattr(args, "ltl", None) else (),
+                    manager_model=str(args.manager_model),
+                    train_worker=bool(getattr(args, "train_worker", False)),
+                    worker_model=str(args.worker_model),
+                )
             )
-
-            # Train manager; worker optional (deterministic mapping remains default).
-            train_manager(total_timesteps=int(args.timesteps), cfg=cfg, model_path=str(args.manager_model))
-            if bool(getattr(args, "train_worker", False)):
-                train_worker(total_timesteps=int(args.timesteps), cfg=cfg, model_path=str(args.worker_model))
             return 0
 
         if args.cmd == "federated":
@@ -398,27 +400,22 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "train":
             if getattr(args, "hierarchical", False):
-                from .hierarchical_rl import HierarchicalConfig, train_manager, train_worker
+                from .hierarchical_training import TrainHierarchicalArgs, train_hierarchical
 
-                cfg = HierarchicalConfig(
-                    num_nodes=int(args.nodes),
-                    strategy_n=int(args.strategies),
-                    seed=int(args.seed),
-                    robust=bool(getattr(args, "robust", False)),
-                    obs_bitflip_p=float(getattr(args, "obs_bitflip_p", 0.0)),
-                )
-
-                train_manager(
-                    total_timesteps=int(args.timesteps),
-                    cfg=cfg,
-                    model_path=str(args.manager_model),
-                )
-                if bool(getattr(args, "train_worker", False)):
-                    train_worker(
-                        total_timesteps=int(args.timesteps),
-                        cfg=cfg,
-                        model_path=str(args.worker_model),
+                train_hierarchical(
+                    TrainHierarchicalArgs(
+                        nodes=int(args.nodes),
+                        strategies=int(args.strategies),
+                        timesteps=int(args.timesteps),
+                        seed=int(args.seed),
+                        robust=bool(getattr(args, "robust", False)),
+                        obs_bitflip_p=float(getattr(args, "obs_bitflip_p", 0.001)),
+                        ltl=list(args.ltl) if getattr(args, "ltl", None) else (),
+                        manager_model=str(args.manager_model),
+                        train_worker=bool(getattr(args, "train_worker", False)),
+                        worker_model=str(args.worker_model),
                     )
+                )
                 return 0
 
             print("Training PPO agent on space debris avoidance...")
