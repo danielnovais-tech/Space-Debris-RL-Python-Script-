@@ -191,9 +191,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Train hierarchical manager (and optional worker) for distributed env",
     )
     p_train.add_argument("--nodes", type=int, default=4)
-    p_train.add_argument("--strategies", type=int, default=4)
+    p_train.add_argument("--strategies", type=int, default=5)
     p_train.add_argument("--robust", action="store_true")
-    p_train.add_argument("--obs-bitflip-p", type=float, default=0.0)
+    p_train.add_argument("--obs-bitflip-p", type=float, default=0.001)
     p_train.add_argument(
         "--ltl",
         action="append",
