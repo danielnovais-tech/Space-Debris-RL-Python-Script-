@@ -258,6 +258,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to worker model (required for --hierarchical)",
     )
 
+    p_eval.add_argument(
+        "--learned-worker",
+        action="store_true",
+        help="Use learned worker (requires --worker-model); otherwise use deterministic mapping",
+    )
+
     p.set_defaults(cmd="run")
 
     _add_distributed_subcommands(sub)
@@ -433,6 +439,7 @@ def main(argv: list[str] | None = None) -> int:
                     manager_path=str(args.manager_model),
                     worker_path=str(args.worker_model),
                     episodes=int(args.episodes),
+                    learned_worker=bool(getattr(args, "learned_worker", False)),
                     robust=bool(args.robust),
                     obs_bitflip_p=float(args.obs_bitflip_p),
                     num_nodes=4,

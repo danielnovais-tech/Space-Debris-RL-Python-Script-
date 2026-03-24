@@ -14,6 +14,7 @@ def evaluate_hierarchical(
     manager_path: str | Path,
     worker_path: str | Path,
     episodes: int = 5,
+    learned_worker: bool = False,
     robust: bool = False,
     obs_bitflip_p: float = 0.0,
     num_nodes: int = 4,
@@ -45,7 +46,15 @@ def evaluate_hierarchical(
 
     from .hrl import HierarchicalAgent
 
-    agent = HierarchicalAgent(manager=manager, worker=worker)
+    agent = HierarchicalAgent(
+        manager=manager,
+        worker=worker if bool(learned_worker) else None,
+        use_learned_worker=bool(learned_worker),
+        worker_strategies=(int(manager.action_space.n) if hasattr(manager, "action_space") else None)
+        if bool(learned_worker)
+        else None,
+        num_nodes=int(num_nodes),
+    )
 
     episode_totals: list[float] = []
     for ep in range(int(episodes)):

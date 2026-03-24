@@ -63,6 +63,7 @@ class RobustEnv(gym.Wrapper):
             "step": self._step_index,
             "action_received": self._to_jsonable(action),
             "strategy": None,
+            "worker_used": None,
             "agent_info": None,
             "strategy_vetoed": False,
             "strategy_veto_reason": None,
@@ -121,6 +122,7 @@ class RobustEnv(gym.Wrapper):
             "step": self._step_index,
             "action_received": self._to_jsonable(action),
             "strategy": None,
+            "worker_used": None,
             "agent_info": None,
             "strategy_vetoed": False,
             "strategy_veto_reason": None,
@@ -137,6 +139,14 @@ class RobustEnv(gym.Wrapper):
                 strategy_val = agent_info.get("strategy")
                 if strategy_val is not None:
                     strategy = int(strategy_val)
+            except Exception:
+                pass
+
+        if agent_info is not None:
+            try:
+                worker_used_val = agent_info.get("worker_used")
+                if worker_used_val is not None:
+                    entry["worker_used"] = bool(worker_used_val)
             except Exception:
                 pass
 
@@ -194,6 +204,12 @@ class RobustEnv(gym.Wrapper):
                     last["strategy"] = int(strategy)
                 if agent_info is not None:
                     last["agent_info"] = self._to_jsonable(agent_info)
+                    try:
+                        worker_used_val = agent_info.get("worker_used")
+                        if worker_used_val is not None:
+                            last["worker_used"] = bool(worker_used_val)
+                    except Exception:
+                        pass
                 if strategy_veto_reason is not None:
                     last["strategy_vetoed"] = True
                     last["strategy_veto_reason"] = str(strategy_veto_reason)

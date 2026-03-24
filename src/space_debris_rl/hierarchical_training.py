@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ._deps import require
+import numpy as np
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ def train_hierarchical(args: TrainHierarchicalArgs) -> None:
             model_path=worker_path,
             manager_path=manager_path,
             strategies=int(args.strategies),
+            num_strategies=int(args.strategies),
             seed=int(args.seed),
         )
 
@@ -141,24 +143,39 @@ def train_worker(
     model_path: str = "worker_ppo.zip",
     manager_path: str | None = None,
     strategies: int = 5,
+    num_strategies: int | None = None,
     seed: int = 0,
 ):
     """Train the low-level worker policy conditioned on strategy.
 
-    Observation = original state + strategy one-hot (size=strategies).
+    Observation = original state + strategy one-hot (size=num_strategies).
     """
     require("stable_baselines3", extra="rl", pip_name="stable-baselines3")
 
     from stable_baselines3 import PPO  # type: ignore
     from stable_baselines3.common.vec_env import DummyVecEnv  # type: ignore
 
-    from .strategy_conditioning import StrategyConditionedObs
+    from .envs import StrategyConditionedEnv
 
     _manager = PPO.load(str(manager_path)) if manager_path else None
 
-    conditioned = StrategyConditionedObs(env, strategy_n=int(strategies))
-    conditioned.set_strategy(0)
-    vec_env = DummyVecEnv([lambda: conditioned])
+    n_strat = int(num_strategies) if num_strategies is not None else int(strategies)
+
+    # Vary strategies across episodes so the worker learns to act under all strategies.
+    def make_env():
+        wrapped = StrategyConditionedEnv(env, num_strategies=int(n_strat))
+
+        class _RandomizeStrategyOnReset(type(wrapped)):
+            def reset(self, **kwargs):  # type: ignore[override]
+                s = int(np.random.randint(0, int(n_strat)))
+                self.set_strategy(s)
+                return super().reset(**kwargs)
+
+        wrapped.__class__ = _RandomizeStrategyOnReset  # type: ignore[misc]
+        wrapped.set_strategy(0)
+        return wrapped
+
+    vec_env = DummyVecEnv([make_env])
 
     # Stub: train a single worker on a fixed strategy. Later we can add curricula
     # or a manager-in-the-loop roll-in.

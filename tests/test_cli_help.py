@@ -39,6 +39,7 @@ def test_evaluate_help_shows_hierarchical_flags() -> None:
     assert "--hierarchical" in out
     assert "--manager-model" in out
     assert "--worker-model" in out
+    assert "--learned-worker" in out
 
 
 def test_train_help_shows_hierarchical_flag() -> None:

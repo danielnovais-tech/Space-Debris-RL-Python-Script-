@@ -44,19 +44,128 @@ Robust evaluation (simulated radiation-induced corruption):
 
 ## Hierarchical distributed demo (manager/worker)
 
-Train a manager (discrete strategy selector) and a worker (conditioned on manager strategy):
+This repo also includes a **distributed self-healing** environment where a **manager** picks a discrete *strategy* and a **worker** produces low-level multi-node actions.
 
-	space-debris-rl hierarchical train-manager --timesteps 50000 --model manager_ppo
-	space-debris-rl hierarchical train-worker --timesteps 50000 --model worker_ppo
+### New capabilities
 
-Evaluate the pair (optionally with observation corruption in robust mode):
+- **Hierarchical training** (`train --hierarchical`) trains a manager policy that selects high-level strategies (e.g., noop, restart, scale up) on the distributed service environment.
+- Optional worker training (`--train-worker`) learns a worker policy that translates strategies into low-level actions (otherwise a deterministic mapping is used).
+- Supports customizing the number of nodes (`--nodes`) and strategies (`--strategies`).
+- Robust mode (`--robust`) wraps the environment in `RobustEnv` with observation bit-flip injection and watchdog resets.
 
-	space-debris-rl hierarchical evaluate --manager manager_ppo.zip --worker worker_ppo.zip --episodes 5
-	space-debris-rl hierarchical evaluate --robust --obs-bitflip-p 0.001
+### Strategy-aware LTL constraints
 
-Code: the reference hierarchical agent interface is available as `space_debris_rl.hrl.HierarchicalAgent`.
+- LTL-like formulas can reference the chosen strategy (example: `strategy_1_restart_less_than_3_per_hour`).
+- Pass formulas via repeatable `--ltl` flags (e.g., `--ltl strategy_1_restart_less_than_3_per_hour`).
+- `SafetyMonitor` enforces these constraints during both training and evaluation, vetoing actions that would violate them.
+
+### Robust evaluation with decision logging
+
+- `evaluate --robust --obs-bitflip-p ...` tests the agent under simulated radiation effects.
+- Adding `--decision-log out/decision_log.json` produces a structured log of each step, including manager strategy context, final action taken, veto/fallback info, and watchdog resets.
+
+### Federated manager aggregation
+
+- `federated aggregate-manager` averages multiple manager checkpoints (e.g., from different nodes) and saves a global manager model.
+
+### Train (hierarchical)
+
+Recommended: use the existing `train` command with the `--hierarchical` flag (keeps the base UX intact):
+
+	space-debris-rl train --hierarchical --timesteps 50000 --manager-model manager_ppo
+
+Optionally also train a learned worker (otherwise the worker uses a deterministic strategy->action mapping):
+
+	space-debris-rl train --hierarchical --timesteps 50000 --manager-model manager_ppo --train-worker --worker-model worker_ppo
+
+Learned worker (explicit example):
+
+	# Train manager
+	space-debris-rl train --hierarchical --strategies 5 --timesteps 100000 --manager-model my_manager
+
+	# Train worker conditioned on strategies (samples a random strategy per episode)
+	space-debris-rl train --hierarchical --train-worker --worker-model my_worker \
+	  --strategies 5 --timesteps 100000 --manager-model my_manager
+
+Equivalent explicit command (same behavior as the alias above):
+
+	space-debris-rl train-hierarchical --timesteps 50000 --manager-model manager_ppo
+
+Useful options:
+
+Flags:
+
+- `--train-worker` also train the worker policy
+- `--manager-model PATH` path/prefix to save the manager model
+- `--worker-model PATH` path/prefix to save the worker model (requires `--train-worker`)
+- `--ltl NAME` repeatable LTL-like formulas (enforced by `SafetyMonitor`; pass multiple times)
+- `--robust` enable observation corruption + safety envelope behavior (including watchdog resets)
+- `--obs-bitflip-p P` bitflip probability in robust mode (default: `0.001` for `train --hierarchical`)
+
+Other knobs:
+
+- `--strategies N` number of discrete strategies (default: 5 for `train --hierarchical`)
+- `--nodes N` number of service nodes (distributed env)
+
+### Evaluate (hierarchical)
+
+Evaluate a trained manager+worker pair via the top-level `evaluate` command:
+
+	space-debris-rl evaluate --hierarchical --manager-model manager_ppo.zip --worker-model worker_ppo.zip --episodes 5
+
+Robust evaluation with decision-log export:
+
+	space-debris-rl evaluate --hierarchical --robust --obs-bitflip-p 0.001 \
+	  --manager-model manager_ppo.zip --worker-model worker_ppo.zip \
+	  --decision-log out/decision_log.json
+
+The decision log is designed for auditability and can include manager strategy context and veto reasons when the safety envelope intervenes (decision logs are emitted in robust mode).
+
+Evaluate with a learned worker (uses strategy-conditioned observations):
+
+	space-debris-rl evaluate --hierarchical --learned-worker \
+	  --manager-model my_manager.zip --worker-model my_worker.zip \
+	  --robust --obs-bitflip-p 0.001 \
+	  --decision-log logs/out.json
+
+### Federated averaging (manager-only)
+
+Average multiple manager checkpoints into a single global manager model:
+
+	space-debris-rl federated aggregate-manager --models manager_a.zip manager_b.zip --output manager_global.zip
 
 Tip: use `--no-render` on headless machines.
+
+### End-to-end checklist
+
+Reproduce the full hierarchical flow (train -> eval -> logs -> federated aggregate):
+
+1) Train manager-only (fast path):
+
+	space-debris-rl train --hierarchical --timesteps 50000 --manager-model manager_ppo
+
+2) (Optional) Train a learned worker:
+
+	space-debris-rl train --hierarchical --timesteps 50000 \
+	  --manager-model manager_ppo --train-worker --worker-model worker_ppo
+
+3) Evaluate manager+worker (robust + decision log):
+
+	space-debris-rl evaluate --hierarchical --episodes 5 --robust --obs-bitflip-p 0.001 \
+	  --manager-model manager_ppo.zip --worker-model worker_ppo.zip \
+	  --decision-log out/decision_log.json
+
+4) Evaluate with runtime constraints (repeat `--ltl` as needed):
+
+	space-debris-rl train --hierarchical --timesteps 50000 --robust --obs-bitflip-p 0.001 \
+	  --ltl strategy_1_restart_less_than_3_per_hour \
+	  --manager-model manager_ltl
+
+5) Federated aggregation (manager-only):
+
+	space-debris-rl federated aggregate-manager \
+	  --models manager_a.zip manager_b.zip manager_c.zip \
+	  --output manager_global.zip
 
 ## Quickstart (self-healing demo)
 
